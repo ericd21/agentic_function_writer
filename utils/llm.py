@@ -8,7 +8,7 @@ MAX_TOKENS = 4096 if MODEL == "mistral-7b-instruct-v0.1.Q4_K_M" else 8192
 
 # LLM Call
 def call_llm(messages: list[dict[str,str]], temperature: float = 0.2) -> str:
-     """
+    """
     LLM Adapter
     Sends messages to the local inference server and returns the assistant's text.
     """

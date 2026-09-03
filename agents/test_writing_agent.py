@@ -1,5 +1,5 @@
-from ..utils.llm import call_llm
-from ..utils.extract import extract_tagged_code
+from agentic_function_writer.utils.llm import call_llm
+from agentic_function_writer.utils.extract import extract_tagged_code
 
 def write_tests(raw_code: str) -> str:
     print("[2] Generating Unit Tests...")

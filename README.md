@@ -1,10 +1,10 @@
 # Agentic Function Writer
 
-A lightweight multi‑agent system that generates Python functions, writes unit tests, executes them, debugs failures, and optionally refactors the final code — all powered by a local LLM.
+A lightweight multi‑agent system that generates Python functions, writes simple tests, executes them, debugs failures, and optionally refactors the final code — all powered by a local LLM.
 
 This project demonstrates clean agent boundaries, a simple orchestrator, schema‑enforced LLM output, and deterministic test execution. It is designed as an example of agentic system architecture.
 
-This project was intentionally designed to run on a small, relatively weak local LLM so I could evaluate how smaller models behave in an agentic workflow. My initial testing used a quantized version of Mistral‑7B‑Instruct on a 6 GB GPU. The system itself worked beautifully, but the model was often inconsistent in following the schema, producing valid <function> blocks, or generating correct code. Because the program prompts the user for a new goal each time it runs, you can directly explore the limitations of smaller models and observe how the agents compensate for those weaknesses. Working with constrained models forces you to think carefully about the boundaries and failure modes of LLMs, and highlights why agentic design and strict schema enforcement matter.
+This project was intentionally designed to run on a small, relatively weak local LLM so I could evaluate how smaller models behave in an agentic workflow. My initial testing used a quantized version of Mistral‑7B‑Instruct on a 6 GB GPU. The system itself works, but the model is often inconsistent in following the schema, producing valid <function> blocks, or generating correct code. Because the program prompts the user for a new goal each time it runs, you can directly explore the limitations of smaller models and observe how the agents compensate for those weaknesses. Working with constrained models forces you to think carefully about the boundaries and failure modes of LLMs, and highlights why agentic design and strict schema enforcement matter.
 
 ## 🚀 Overview
 The system takes a natural‑language goal such as:
@@ -13,22 +13,22 @@ The system takes a natural‑language goal such as:
 
 Then it runs a full agentic workflow:
 
-### Coder Agent  
+### Coding Agent  
 Generates a Python function wrapped in <function>...</function> tags.
 
-### Tester Agent  
+### Test Writing Agent  
 Writes three assert‑based unit tests, also wrapped in <function> tags.
 
-### Test Runner  
+### Function Test Executor  
 Executes the function + tests using exec() and reports pass/fail.
 
-### Debugger Agent  
+### Debugging Agent  
 If tests fail, the debugger fixes the code and returns a corrected version.
 
-### Refactor Agent (optional)  
+### Refactoring Agent (optional)  
 Cleans up the final code for readability and efficiency.
 
-### Orchestrator  
+### Orchestration Loop
 Coordinates the entire workflow and handles retry logic.
 
 This produces a fully working, tested, and optionally refactored Python function.
@@ -40,18 +40,18 @@ agentic-function-writer/
 ├── main.py
 │
 ├── orchestrator/
-│   └── loop.py
+│   ├── loop.py
+|   └── function_test_executor.py
 │
 ├── agents/
-│   ├── coder.py
-│   ├── tester.py
-│   ├── debugger.py
-│   └── refactor.py
+│   ├── coding_agent.py
+│   ├── test_writing_agent.py
+│   ├── debugging_agent.py
+│   └── refactoring_agent.py
 │
 ├── utils/
 │   ├── llm.py
-│   ├── extract.py
-│   └── runner.py
+│   └── extract.py
 │
 └── README.md
 ```
@@ -60,10 +60,10 @@ agentic-function-writer/
 Each agent performs one capability:
 | Agent | Responsibility |
 | --- | --- |
-| **Coder** | Generates the initial Python function |
-| **Tester** | Writes assert‑based unit tests |
-| **Debugger** | Fixes failing code using error messages |
-| **Refactor** | Improves readability and efficiency |
+| **Coding** | Generates the initial Python function |
+| **Testing** | Writes assert‑based unit tests |
+| **Debugging** | Fixes failing code using error messages |
+| **Refactoring** | Improves readability and efficiency |
 
 
 All agents enforce a strict schema:
@@ -73,14 +73,16 @@ All agents enforce a strict schema:
 Small, deterministic utilities:
 - llm.py — local LLM adapter
 - extract.py — extracts code from <function> tags
-- runner.py — executes code + tests and returns pass/fail
 
 ## Orchestrator
 The orchestrator coordinates the entire workflow:
-- calls agents
-- runs tests
-- handles retries
-- decides when to debug or finish
+- loop.py 
+  - calls coding and test writing agents 
+  - runs tests
+  - debug and iterate if needed
+
+- runner.py 
+  — executes code + tests and returns pass/fail
 
 ## 🔁 Agentic Loop
 The orchestrator implements:
@@ -89,13 +91,14 @@ The orchestrator implements:
 code = call_coding_agent(goal)
 tests = write_tests(code)
 
-for _ in range(3):
+for _ in range(n_iter):
     passed, error = run_tests(code, tests)
     if passed:
         break
     code = debug_code(code, tests, error)
 
-final = agent_refactor_pass(code)
+# optional. Not recommended with weak models.
+final_version = refactor_code(code)
 ```
 This loop is intentionally simple and readable — perfect for demonstrating agentic system design.
 
@@ -112,9 +115,12 @@ The runner returns:
 This error message is fed directly into the debugger agent.
 
 ## 🏗️ LLM Requirements
-This project uses a local inference server compatible with the OpenAI chat completions API.
+This project uses a local inference server compatible with the OpenAI chat completions API. I used llama.cpp with a quantized version of Mistral 7b instruct downloaded from HuggingFace. I chose llama.cpp because it provides fast, lightweight local inference and exposes an OpenAI‑compatible API, making it ideal for testing weak‑LLM agent behavior.
 
-Example configuration:
+- llama.cpp -- https://github.com/ggml-org/llama.cpp
+- Mistral 7B Instruct (quantized gguf) -- https://huggingface.co/itlwas/Mistral-7B-Instruct-v0.1-Q4_K_M-GGUF
+
+Example configuration in utils\llm.py:
 
 ```Python
 API_URL = "http://localhost:8080/v1/chat/completions"
@@ -132,16 +138,16 @@ Any model that supports chat messages and returns:
 will work.
 
 ## ▶️ Running the Program
-From the project root:
+From the the folder above the project root:
 
 ```bash
-python main.py
+python -m agentic_function_writer.main
 ```
 You will be prompted:
 ```Code
 What function should the agent build?
-Enter a natural‑language description, such as:
 ```
+Enter a natural‑language description, such as:
 ```Code
 Write a function that returns the nth Fibonacci number.
 ```
